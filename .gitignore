@@ -1,0 +1,7 @@
+Tests/
+my_secrets.py
+Vault.sublime-project
+Vault.sublime-workspace
+*.txt
+*.db
+__pycache__
