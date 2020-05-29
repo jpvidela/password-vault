@@ -3,13 +3,16 @@ import sqlite3
 from Crypto.Hash import SHA256
 import my_secrets
 import encrypter
+import time
+
+# MAIN MENU
 
 
 def GetAction():
     while True:
         # Print menu
-        print('\nWhat do you want to do? \n')
-        print(10 * '#')
+        print('\n\nWhat would you like to do next? \n')
+        print(10 * '~')
         print('')
         print('s : Store new password')
         print('r : Retrieve stored password')
@@ -17,25 +20,35 @@ def GetAction():
         print('l : List stored services/sites')
         print('q : Quit program')
         print('')
-        print(10 * '#')
+        print(10 * '~')
         action = input('\nYour command: ')[0]
         if action == 'q':
             break
         if action == 's':
+            # Get inputs
             service = input("Service/Site name: ")
             user = input("User: ")
             password = input("Password: ")
-            print(store(service, user, password, AES_key))
+            if store(service, user, password, AES_key) == 0:
+                print("Password succesfully stored!")
+                input("Press Enter to continue")
         if action == 'r':
             service = input("Retrieve password for Service/Site name: ")
             user = input("User: ")
-            retrieve(service, user, AES_key)
+            ans = retrieve(service, user, AES_key)
+            if ans != 1:
+                print(f'Service: {service}')
+                print(f'User: {user}')
+                print(f'Password: {ans}')
+            input("Press Enter to continue")
         if action == 'd':
             pass
         if action == 'l':
             pass
     return 0
 
+
+# *** DATABASE AND ENCRIPTION FUNCTIONS ***
 
 # Hash a word with SHA256 algorithm
 def hash_word(word):
@@ -44,29 +57,48 @@ def hash_word(word):
     return h.hexdigest()
 
 
+# Store password in database
 def store(svc, usr, pw, AES_key):
-    # Generate AES encrypted password
-    key = encrypter.encrypt(pw, AES_key)
-    # Store in database
-    db.execute(f"INSERT INTO cles (site, user, key) VALUES(?, ?, ?)", (svc, usr, key))
-    # Save changes into database
-    db.commit()
-    print(f"Password stored for service '{svc}' and user '{usr}'")
-    return 0
+    try:
+        # Generate AES encrypted password
+        key = encrypter.encrypt(pw, AES_key)
+        # Store in database
+        db.execute(f"INSERT INTO cles (site, user, key) VALUES(?, ?, ?)", (svc, usr, key))
+        # Save changes into database
+        db.commit()
+        print(f"Password stored for service '{svc}' and user '{usr}'")
+        return 0
+    except:
+        return 1
 
 
+# Retrieve and decrypt password from database
 def retrieve(svc, usr, AES_key):
     # Retrieve encrypted password from database
-    cursor = db.execute('SELECT key FROM cles WHERE site = ? and user = ?', (svc, usr))
-    key = cursor.fetchall()[0][0]
-    print(f'Stored key value in database: {key}')
+    data = check_record(svc, usr)
+    if data == 1:
+        print("Try Again!")
+        return 1
+    else:
+        key = data[0][2]
     # Decrypt pasword with AES algorithm
     pw_decrypt = encrypter.decrypt(key, AES_key)
-    print(f'Service: {svc}')
-    print(f'User: {usr}')
-    print(f'Password: {pw_decrypt}')
-    return 0
+    return pw_decrypt
 
+
+# Check if record exists in database
+def check_record(svc, usr):
+    # Search for register.
+    cursor = db.execute('SELECT * FROM cles WHERE site = ? and user = ?', (svc, usr))
+    data = cursor.fetchall()
+    if len(data) == 0:
+        print("Couldn't found any matching record")
+        return 1
+    else:
+        return data
+
+
+# *** END OF FUNCTIONS ***
 
 # Login
 input_pw = ''
@@ -79,21 +111,18 @@ while input_pw != my_secrets.password:
 
 # Generate key from SHA256 hash algorithm and store last 16 characters
 AES_key = hash_word(my_secrets.password)[-16:]
-# FOR DEBUGGING
 
-key_file = open("AES_key.txt", "w")
-key_file.write(AES_key)
-key_file.close()
-
-# END FOR DEBUGGING
 # Crear base de datos
 db = sqlite3.connect('vault.db')
+
 # Crear tabla cles dentro de vault
 command = "CREATE TABLE cles (user TEXT, site TEXT, key TEXT)"
 try:
     db.execute(command)
     print("\nVault created!")
     GetAction()
-except:
+except sqlite3.Error:
+    print('Welcome back!')
     print('\nYou already have a vault!')
+    time.sleep(2)
     GetAction()
