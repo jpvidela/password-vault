@@ -23,6 +23,7 @@ def GetAction():
         print(10 * '~')
         action = input('\nYour command: ')[0]
         if action == 'q':
+            db.close()
             break
         if action == 's':
             # Get inputs
@@ -44,7 +45,8 @@ def GetAction():
         if action == 'd':
             pass
         if action == 'l':
-            pass
+            list_records()
+            time.sleep(2)
     return 0
 
 
@@ -96,6 +98,18 @@ def check_record(svc, usr):
         return 1
     else:
         return data
+
+
+def list_records():
+    cursor = db.execute('SELECT site, user FROM cles')
+    data = cursor.fetchall()
+    if len(data) == 0:
+        print("Your vault is empty")
+        return 0
+    else:
+        for row in data:
+            print(f'Site: {row[0]} | User: {row[1]}')
+        return 0
 
 
 # *** END OF FUNCTIONS ***
